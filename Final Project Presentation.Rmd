@@ -1,0 +1,76 @@
+---
+title: "Tool for Landlords: Predicting Rent in San Jose"
+output: ioslides_presentation
+date: "April 12, 2020"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(data.table)
+library(stringr)
+library(ggplot2)
+library(forecast)
+library(zoo)
+```
+
+```{r}
+df <- fread("/home/andspringer17/Developing Data Products/Shiny App Final Project/quarterly_apt_rent.csv")
+names(df) <- c("Quarter", "Average","One_One","Two_Two")
+df[, c("Average", "One_One", "Two_Two") := list(str_remove(Average, ","),
+                                                    str_remove(One_One,","),
+                                                    str_remove(Two_Two, ","))]
+
+df[, c("Average", "One_One", "Two_Two") := list(as.numeric(Average),
+                                                    as.numeric(One_One),
+                                                    as.numeric(Two_Two))]
+df[, Quarter := as.yearqtr(Quarter)]
+timeSeries <- ts(df[,"One_One"], start=c(1999,1),end=c(2016,2),frequency=4)
+```
+
+## Maximize Profit
+
+Landlords can maximize profit by knowing what expected rental rates will be in the future!
+
+```{r, out.width = "800px"}
+knitr::include_graphics("WebpageScreenshot.png")
+```
+
+
+## Holts-Winter Forecast
+
+The dashboard relies on a Holts-Winter time-series forecasting algorithm.
+See code example below
+
+```{r, echo=TRUE, fig.height=4}
+hwFit <- hw(timeSeries, h=18)
+plot(hwFit)
+```
+
+## Model Output
+
+```{r, warning=FALSE}
+timeSeries1 <- ts(df[,"One_One"], start=c(1999,1),end=c(2016,2),frequency=4)
+timeSeries1 <- window(timeSeries1, start = 2006, end=2016.50)
+timeSeries2 <- ts(df[,"Two_Two"], start=c(1999,1),end=c(2016,2),frequency=4)
+timeSeries2 <- window(timeSeries2, start = 2006, end=2016.50)
+timeSeries3 <- ts(df[,"Average"], start=c(1999,1),end=c(2016,2),frequency=4)
+timeSeries3 <- window(timeSeries3, start = 2006, end=2016.50)
+```
+
+Using 10 years of data from 2006 - 2016 the model makes the following forecasts about San Jose Rental rates in Q3 2020
+
+* 1 Bedroom/1 Bath: `r paste0("$",format(tail(hw(timeSeries1, h=18)$mean,1)[[1]],digits = 0, big.mark = ","))`
+
+* 2 Bedroom/2 Bath: `r paste0("$",format(tail(hw(timeSeries2, h=18)$mean,1)[[1]],digits = 0, big.mark = ","))`
+
+* Average: `r paste0("$",format(tail(hw(timeSeries3, h=18)$mean,1)[[1]],digits = 0, big.mark = ","))`
+
+
+## Webpage Location and Data Sources
+
+The dashboard is located at this url: 
+https://aspringer.shinyapps.io/Predicting_San_Jose_Rental_Rates/
+
+The data was sourced from Kaggle at this url:
+https://www.kaggle.com/sanjosedata/quarterly-average-apartment-rent
+
